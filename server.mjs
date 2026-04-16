@@ -91,6 +91,16 @@ const RATE_LIMIT_PER_MIN = Number(pickEnv(
   60,
 )) || 60;
 
+// First-run demo seed: when the DB is empty at boot, optionally insert a
+// handful of demo cards so new users see content in the UI immediately.
+// Defaults ON (skipped automatically on any non-empty DB); flip to false in
+// config to suppress in production deployments.
+const DEMO_SEED_ENABLED = (() => {
+  const v = pickEnv('DECISION_DESK_DEMO_SEED', fileConfig.demo_seed, true);
+  if (v === 'false' || v === false || v === 0 || v === '0') return false;
+  return true;
+})();
+
 mkdirSync(DATA_DIR, { recursive: true });
 
 // ---------------------------------------------------------------------------
@@ -255,6 +265,82 @@ ensureColumn('deliverables', 'execution_notes', 'TEXT');
 ensureColumn('deliverables', 'probation_entry_id', 'TEXT');
 
 db.exec(`CREATE INDEX IF NOT EXISTS idx_deliverables_execution ON deliverables(status, execution_status)`);
+
+// ---------------------------------------------------------------------------
+// First-run demo seed
+// ---------------------------------------------------------------------------
+// If DEMO_SEED is on (default) AND the DB has no deliverables, insert three
+// demo cards so the reviewer sees content on first visit instead of an empty
+// queue. Each card is marked with metadata._demo:true so it's easy to purge.
+function maybeSeedDemo() {
+  if (!DEMO_SEED_ENABLED) return;
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM deliverables`).get().n;
+  if (count > 0) return;
+
+  const firstBrand = BRANDS[0]?.id || 'default';
+  const ts = new Date().toISOString();
+
+  // Order matters: the queue is newest-first, so the LAST card in this array
+  // shows up first in the UI. Keep the self-explanatory "Welcome" card last.
+  const demoCards = [
+    {
+      type: 'capability-request',
+      title: 'Approve: wire up the example agent',
+      agent_id: 'demo',
+      html_content: `<div style="font-family:-apple-system,sans-serif;padding:24px 28px;color:#1a1814;line-height:1.65">
+        <p><b>Proposal:</b> Point your own agent at this desk. The SDK clients in <code>sdk/python</code> and <code>sdk/node</code> are ~80 lines each and have no dependencies.</p>
+        <p><b>Example:</b> <code>python examples/basic-agent/submit.py</code> will POST a new card here.</p>
+        <p><b>Risk:</b> low. <b>Rollback:</b> delete the row, or <code>docker compose down -v</code>.</p>
+      </div>`,
+      metadata: { _demo: true, rationale: 'Demonstrate the end-to-end loop.', risk: 'low' },
+    },
+    {
+      type: 'email-html',
+      title: 'Sample welcome email',
+      subject_line: 'Welcome aboard',
+      agent_id: 'demo',
+      html_content: `<html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:40px 24px;color:#1a1a1a"><h1 style="font-size:26px;margin-bottom:12px">Welcome aboard.</h1><p style="font-size:15px;line-height:1.7;color:#555;margin-bottom:20px">This card previews what an agent-authored marketing email looks like inside the Decision Desk inbox mockup. The iframe on the left is your real HTML, rendered safely.</p><a href="#" style="display:inline-block;padding:12px 24px;background:#6366f1;color:white;text-decoration:none;border-radius:6px;font-weight:600">Get started</a></body></html>`,
+      metadata: { _demo: true },
+    },
+    {
+      // Custom type → hits the fallback iframe renderer so the full HTML below
+      // renders as-is (the built-in types have structured field layouts).
+      type: 'welcome-note',
+      title: 'Welcome to Decision Desk',
+      agent_id: 'demo',
+      html_content: `<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1a1814">
+        <h1 style="margin:0 0 16px;font-size:24px;font-family:'Bricolage Grotesque',sans-serif">This is a demo card.</h1>
+        <p style="font-size:15px;line-height:1.7;color:#4a4540;margin:0 0 14px">You're looking at the Decision Desk reviewer UI. Every card represents something an AI agent wants you to approve, deny, or discuss.</p>
+        <p style="font-size:15px;line-height:1.7;color:#4a4540;margin:0 0 14px"><b>Try it:</b> swipe right to approve, left to deny, up to open a thread. Your choices feed the Intelligence view — your agents fetch that to learn your taste.</p>
+        <div style="background:#f8f7f4;border:1px solid #e8e4de;border-radius:8px;padding:14px 18px;margin:20px 0 8px;font-size:13px;color:#6b6560;line-height:1.6">
+          <b style="color:#1a1814">Clear the demo:</b> deny these cards, or set <code style="background:#e8e4de;padding:1px 6px;border-radius:3px;font-size:12px">demo_seed: false</code> in <code style="background:#e8e4de;padding:1px 6px;border-radius:3px;font-size:12px">config.json</code>.
+        </div>
+      </div>`,
+      metadata: { _demo: true },
+    },
+  ];
+
+  const insertTx = db.transaction(() => {
+    for (const c of demoCards) {
+      const campaignId = Math.random().toString(36).slice(2, 14);
+      const deliverableId = Math.random().toString(36).slice(2, 14);
+      db.prepare(`
+        INSERT INTO campaigns (id, brand, module, title, stage, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'briefed', ?, ?, ?)
+      `).run(campaignId, firstBrand, c.type, c.title, c.agent_id, ts, ts);
+      db.prepare(`
+        INSERT INTO deliverables (id, campaign_id, agent_id, type, title, version, html_content, status, subject_line, metadata, submitted_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?, 'submitted', ?, ?, ?)
+      `).run(
+        deliverableId, campaignId, c.agent_id, c.type, c.title,
+        c.html_content, c.subject_line || null,
+        JSON.stringify(c.metadata), ts,
+      );
+    }
+  });
+  insertTx();
+  console.log(`[demo-seed] inserted ${demoCards.length} demo cards. Disable with demo_seed: false in config.json.`);
+}
 
 // ---------------------------------------------------------------------------
 // Prepared statements
@@ -1423,12 +1509,17 @@ if (RETENTION_DAYS > 0) {
   setInterval(runRetentionSweep, 24 * 60 * 60 * 1000).unref();
 }
 
+// Seed demo content into an empty DB so `docker compose up` shows cards
+// on first visit. No-op on any restart (DB row count > 0 bails out early).
+maybeSeedDemo();
+
 app.listen(PORT, HOST, () => {
   console.log(`Decision Desk running on http://${HOST}:${PORT}`);
   console.log(`  data dir:   ${DATA_DIR}`);
   console.log(`  auth:       ${WRITE_TOKEN ? 'required on writes' : 'off (reads + writes open)'}`);
   console.log(`  rate limit: ${RATE_LIMIT_PER_MIN > 0 ? `${RATE_LIMIT_PER_MIN}/min per IP on writes` : 'off'}`);
   console.log(`  retention:  ${RETENTION_DAYS > 0 ? `archive bodies after ${RETENTION_DAYS} days` : 'off (keep forever)'}`);
+  console.log(`  demo seed:  ${DEMO_SEED_ENABLED ? 'on (empty DB only)' : 'off'}`);
   if (NOTIFY_WEBHOOK_URL) console.log(`  webhook:    ${NOTIFY_WEBHOOK_URL}`);
   const counts = db.prepare(`
     SELECT

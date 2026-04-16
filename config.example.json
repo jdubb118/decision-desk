@@ -42,6 +42,9 @@
 
   "safe_roots": ["./data/uploads"],
 
+  "_comment_demo_seed": "Set to false to skip the first-run demo cards (they only insert when the DB is empty anyway).",
+  "demo_seed": true,
+
   "notifications": {
     "webhook_url": null,
     "webhook_secret": null
