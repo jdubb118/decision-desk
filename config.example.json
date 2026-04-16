@@ -45,5 +45,10 @@
   "notifications": {
     "webhook_url": null,
     "webhook_secret": null
+  },
+
+  "auth": {
+    "_comment": "Optional shared-secret. When set, all POST/PATCH/PUT/DELETE /api/* requests must send Authorization: Bearer <write_token>. Reads stay open (put the desk behind a proxy for read ACLs). The UI prompts for the token on first visit and stores it in localStorage.",
+    "write_token": null
   }
 }

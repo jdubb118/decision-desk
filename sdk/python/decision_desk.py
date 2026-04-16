@@ -34,9 +34,16 @@ class DecisionDeskError(Exception):
 
 
 class Client:
-    def __init__(self, base_url: str, agent_id: str, timeout: float = 30.0):
+    def __init__(self, base_url: str, agent_id: str, token: str | None = None, timeout: float = 30.0):
+        """Create a Decision Desk client.
+
+        token: optional bearer token. Required when the server has
+               DECISION_DESK_WRITE_TOKEN set; ignored otherwise. Read calls
+               always work without it.
+        """
         self.base_url = base_url.rstrip("/")
         self.agent_id = agent_id
+        self.token = token
         self.timeout = timeout
 
     # -- core HTTP --------------------------------------------------------
@@ -47,6 +54,8 @@ class Client:
         req = urllib.request.Request(url, data=data, method=method)
         if body is not None:
             req.add_header("Content-Type", "application/json")
+        if self.token:
+            req.add_header("Authorization", f"Bearer {self.token}")
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))

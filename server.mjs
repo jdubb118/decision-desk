@@ -47,6 +47,11 @@ const SAFE_ROOTS = (pickEnv(
 const NOTIFY_WEBHOOK_URL = pickEnv('DECISION_DESK_WEBHOOK_URL', fileConfig.notifications?.webhook_url, null) || null;
 const NOTIFY_WEBHOOK_SECRET = pickEnv('DECISION_DESK_WEBHOOK_SECRET', fileConfig.notifications?.webhook_secret, null) || null;
 
+// Optional shared-secret auth on write endpoints. When unset, all routes stay
+// open (single-tenant private-network posture). When set, any request to a
+// mutating route must include `Authorization: Bearer <token>`.
+const WRITE_TOKEN = pickEnv('DECISION_DESK_WRITE_TOKEN', fileConfig.auth?.write_token, null) || null;
+
 // Brands: array of { id, label, color, ... }. Frontend mockups consume this
 // via /api/config. If unspecified, the desk runs single-tenant with one
 // "default" brand and the toggle stays hidden.
@@ -378,6 +383,32 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '5mb' }));
 
+// Bearer-token auth on write endpoints. Applies only when WRITE_TOKEN is set.
+// Uses constant-time compare to avoid leaking length via timing. Reads remain
+// open so the reviewer UI can render without auth (put it behind a proxy if
+// you care about read ACLs).
+function requireWriteToken(req, res, next) {
+  if (!WRITE_TOKEN) return next();
+  const header = req.get('authorization') || '';
+  const m = header.match(/^Bearer\s+(.+)$/i);
+  const presented = m ? m[1] : null;
+  if (!presented) return res.status(401).json({ error: 'Missing Authorization: Bearer <token>' });
+  const a = Buffer.from(presented);
+  const b = Buffer.from(WRITE_TOKEN);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(403).json({ error: 'Invalid token' });
+  }
+  next();
+}
+
+// Mutating routes go through the auth middleware. Reads (GET) do not.
+const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  if (!MUTATING_METHODS.has(req.method)) return next();
+  return requireWriteToken(req, res, next);
+});
+
 // Static files for React frontend
 const distPath = join(__dirname, 'dist');
 if (existsSync(distPath)) {
@@ -404,6 +435,7 @@ app.get('/api/config', (_req, res) => {
     card_types: CARD_TYPES,
     calendar_enabled: Object.keys(CALENDAR_PATHS).length > 0,
     webhook_configured: !!NOTIFY_WEBHOOK_URL,
+    auth_required: !!WRITE_TOKEN,
   });
 });
 

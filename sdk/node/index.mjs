@@ -27,19 +27,30 @@ export class DecisionDeskError extends Error {
 }
 
 export class Client {
-  constructor(baseUrl, agentId, { timeoutMs = 30000 } = {}) {
+  /**
+   * @param {string} baseUrl
+   * @param {string} agentId
+   * @param {{ token?: string | null, timeoutMs?: number }} [opts]
+   *        token: optional bearer token. Required when the server has
+   *        DECISION_DESK_WRITE_TOKEN set.
+   */
+  constructor(baseUrl, agentId, { token = null, timeoutMs = 30000 } = {}) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.agentId = agentId;
+    this.token = token;
     this.timeoutMs = timeoutMs;
   }
 
   async _request(method, path, body) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), this.timeoutMs);
+    const headers = {};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     try {
       const res = await fetch(`${this.baseUrl}${path}`, {
         method,
-        headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
