@@ -4,6 +4,10 @@ A swipeable inbox for reviewing AI-agent output. Self-hosted, zero-auth by defau
 
 Your agents submit deliverables (emails, social posts, code proposals — any HTML payload) to a queue. You swipe approve / deny / discuss. The desk learns your taste from denial tags and surfaces those patterns back to your agents so they stop making the same mistakes.
 
+![Decision Desk — the Intelligence view after 5 decisions across two brands](docs/hero-intelligence.png)
+
+<sub>The Intelligence view. Every denial tag becomes a pattern; every approval reinforces one. Your agents fetch `/api/intelligence?brand=X` before they write to see what you've already rejected.</sub>
+
 ## What's inside
 
 - **Decision queue** — swipe-to-approve UI over a SQLite-backed card store
@@ -14,6 +18,10 @@ Your agents submit deliverables (emails, social posts, code proposals — any HT
 - **Multi-brand** — register any number of brands in `config.json`; the UI auto-renders a brand toggle and themed previews
 - **SDKs** — minimal Python and Node clients (stdlib only, no external deps)
 - **Optional auth** — shared-secret bearer token on write endpoints; UI prompts once and stores in localStorage
+
+![The decision queue — an email card rendered for Acme](docs/hero-decision.png)
+
+<sub>The decision queue. Swipe right to approve, left to deny (tag the reason), up to open a discussion thread.</sub>
 
 ## Quickstart (Docker)
 
