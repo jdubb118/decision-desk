@@ -1,4 +1,4 @@
-import { CARD_SHADOW, PlaceholderImg, brandLabel } from './_shared';
+import { CARD_SHADOW, PlaceholderImg, brandPalette } from './_shared';
 
 export interface EmailInboxPreviewProps {
   brand: string;
@@ -53,8 +53,9 @@ export function EmailInboxPreview({
   heroPlaceholder,
   concept,
 }: EmailInboxPreviewProps) {
-  const brandName = brandLabel(brand);
-  const accent = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const accent = palette.accent;
 
   const rawCopy = (finalCopyHtml ?? copyDirection ?? '').trim();
   const copyIsHtml = isHtml(rawCopy);
@@ -223,7 +224,7 @@ export function EmailInboxPreview({
             </div>
             <div style={{ flex: 1, fontSize: 12, color: '#5f6368' }}>
               <strong style={{ color: '#202124' }}>{brandName}</strong>{' '}
-              &lt;hello@{brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com'}&gt;
+              &lt;hello@{palette.emailDomain}&gt;
               <div>to you · 9:41 AM</div>
             </div>
           </div>

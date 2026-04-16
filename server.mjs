@@ -75,7 +75,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     deliverable_id TEXT,
     campaign_id TEXT,
-    decider TEXT DEFAULT 'jeff',
+    decider TEXT DEFAULT 'reviewer',
     verdict TEXT,
     denial_tags TEXT,
     notes TEXT,
@@ -140,7 +140,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS calendar_flags (
     id TEXT PRIMARY KEY,
     entry_id TEXT NOT NULL,
-    agent_id TEXT DEFAULT 'stella',
+    agent_id TEXT,
     flag_type TEXT NOT NULL,
     note TEXT,
     created_at TEXT,
@@ -168,7 +168,7 @@ db.exec(`
 // Drop the misnamed old index from pre-audit schemas (it aliased to campaign_id, not brand).
 try { db.exec(`DROP INDEX IF EXISTS idx_deliverables_brand`); } catch { /* noop */ }
 
-// Closure-loop columns — track what happened AFTER Jeff approved.
+// Closure-loop columns — track what happened AFTER the reviewer approved.
 // SQLite's ALTER TABLE is additive-only; we guard with column introspection.
 function ensureColumn(table, column, ddl) {
   const info = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -677,7 +677,7 @@ app.get('/api/intelligence', (req, res) => {
     .slice(0, 20)
     .map(([tag, count]) => ({ tag, count }));
 
-  // Recent decisions (brand-scoped when ?brand= set — fixes SYS bleed-through into DEKE/EB views)
+  // Recent decisions (brand-scoped when ?brand= set — prevents cross-brand bleed-through)
   const recentDecisions = db.prepare(`
     SELECT dec.*, d.title, d.type, d.agent_id, c.brand
     FROM decisions dec
@@ -1077,7 +1077,7 @@ app.patch('/api/calendar/:id/performance', (req, res) => {
   }
 });
 
-// Flag a calendar entry (used by Stella)
+// Flag a calendar entry as needing attention.
 app.post('/api/calendar/:id/flag', (req, res) => {
   try {
     const { flag_type, note, agent_id } = req.body || {};
@@ -1088,10 +1088,11 @@ app.post('/api/calendar/:id/flag', (req, res) => {
 
     const flagId = uid();
     const ts = now();
+    const flagger = agent_id || 'system';
     db.prepare(`INSERT INTO calendar_flags (id, entry_id, agent_id, flag_type, note, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(flagId, req.params.id, agent_id || 'stella', flag_type, note || null, ts);
+      .run(flagId, req.params.id, flagger, flag_type, note || null, ts);
 
-    res.json({ id: flagId, entry_id: req.params.id, agent_id: agent_id || 'stella', flag_type, note: note || null, created_at: ts });
+    res.json({ id: flagId, entry_id: req.params.id, agent_id: flagger, flag_type, note: note || null, created_at: ts });
   } catch (err) {
     console.error('POST /api/calendar/:id/flag error:', err.message);
     res.status(500).json({ error: 'Internal error. Check server log for details.' });
@@ -1133,7 +1134,7 @@ app.post('/api/learning', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// (checklist subsystem removed — was a Throat Threads-specific overlay)
+// (Pre-flight checklist subsystem removed — was a customer-specific overlay.)
 // ---------------------------------------------------------------------------
 
 

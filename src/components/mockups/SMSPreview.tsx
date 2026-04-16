@@ -1,4 +1,4 @@
-import { CARD_SHADOW, brandLabel } from './_shared';
+import { CARD_SHADOW, brandPalette } from './_shared';
 
 export interface SMSPreviewProps {
   brand: string;
@@ -8,8 +8,9 @@ export interface SMSPreviewProps {
 
 /** iPhone Messages bubble preview with segment counter. */
 export function SMSPreview({ brand, message, senderName }: SMSPreviewProps) {
-  const brandName = senderName || brandLabel(brand);
-  const bubbleColor = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = senderName || palette.name;
+  const bubbleColor = palette.accent;
   const charCount = message.length;
   const segments = Math.max(1, Math.ceil(charCount / 160));
 

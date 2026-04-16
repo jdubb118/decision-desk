@@ -1,4 +1,4 @@
-import { PENDING_ASSET } from './_shared';
+import { PENDING_ASSET, brandPalette } from './_shared';
 
 export interface CalendarEntryLike {
   id: string;
@@ -102,7 +102,7 @@ export function adaptCalendarEntry(entry: CalendarEntryLike): AdaptedEntry {
   const isDraftCopy = !finalCopy;
   const isCopyMissing = !finalCopy && !copyDirection;
 
-  const handle = entry.brand === 'eb' ? 'emanuelberg' : 'deke_official';
+  const handle = brandPalette(entry.brand).handle;
 
   return {
     brand: entry.brand,

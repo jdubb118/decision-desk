@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Deliverable } from '../types/deliverable';
 import { agents } from '../theme';
 import { IGFeedPost, IGCarousel, IGStories, IGReel, TikTokPost } from './InstagramMockup';
+import { brandPalette } from './mockups/_shared';
 
 const CARD_SHADOW = '0 0 40px rgba(255,255,255,0.03), 0 12px 40px rgba(0,0,0,0.3)';
 
@@ -33,7 +34,7 @@ function styledIframe(html: string, title: string) {
 
 function PlaceholderImg({ w, h, brand, text, style }: { w: number; h: number; brand: string; text: string; style?: React.CSSProperties }) {
   const seed = text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
-  const bg = brand === 'deke' ? 'c4a35a' : '3d5a73';
+  const bg = brandPalette(brand).accentHex;
   const [useFallback, setUseFallback] = useState(false);
   if (useFallback) {
     return <img src={`https://placehold.co/${w}x${h}/${bg}/ffffff?text=${encodeURIComponent(text)}`} style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }} />;
@@ -104,8 +105,11 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 export function CardPreview({ deliverable, previewWidth }: { deliverable: Deliverable; previewWidth: 'mobile' | 'desktop' }) {
   const meta = (deliverable.metadata || {}) as Record<string, unknown>;
   const brand = deliverable.brand;
-  const brandName = brand === 'deke' ? 'DEKE' : 'Emanuel Berg';
-  const handle = brand === 'eb' ? 'emanuelberg' : 'deke_official';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const handle = palette.handle;
+  const accent = palette.accent;
+  const initial = palette.initial;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // EMAIL HTML
@@ -116,7 +120,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
       <div style={{ width: Math.min(width + 2, width + 40), maxWidth: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: CARD_SHADOW, border: '1px solid rgba(0,0,0,0.06)' }}>
         <div style={{ background: '#f6f8fc', borderBottom: '1px solid #e0e0e0', padding: '10px 16px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: brand === 'deke' ? '#c4a35a' : '#3d5a73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{brand === 'deke' ? 'D' : 'E'}</div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{initial}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#202124' }}>{brandName}</span>
@@ -155,7 +159,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
         <div style={{ width: 340, background: '#fff', borderRadius: 8, boxShadow: CARD_SHADOW, border: '1px solid #dbdbdb', overflow: 'hidden', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: '50%', background: `conic-gradient(from 180deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)`, padding: 2 }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2px solid #fff', background: brand === 'deke' ? '#c4a35a' : '#3d5a73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700 }}>{brand === 'deke' ? 'D' : 'EB'}</div>
+              <div style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2px solid #fff', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700 }}>{initial}</div>
             </div>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#262626' }}>{handle}</span>
           </div>
@@ -193,12 +197,12 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (deliverable.type === 'ad-copy') {
     const m = meta as Record<string, string>;
-    const domain = brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com';
+    const domain = palette.domain;
     return (
       <div style={{ maxWidth: 500, width: '100%', background: '#fff', borderRadius: 8, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
         {/* FB Header */}
         <div style={{ padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: brand === 'deke' ? '#c4a35a' : '#3d5a73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{brandName[0]}</div>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{brandName[0]}</div>
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, color: '#050505' }}>{brandName}</div>
             <div style={{ fontSize: 12, color: '#65676b', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -268,11 +272,11 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (deliverable.type === 'tweet' || deliverable.type === 'x-post') {
     const text = String(meta.text || meta.copy || deliverable.html_content?.replace(/<[^>]+>/g, '') || deliverable.title);
-    const xHandle = brand === 'eb' ? '@emanuelberg' : '@deke_official';
+    const xHandle = `@${palette.handle}`;
     return (
       <div style={{ maxWidth: 560, width: '100%', background: '#000', borderRadius: 16, boxShadow: CARD_SHADOW, border: '1px solid #2f3336', overflow: 'hidden' }}>
         <div style={{ padding: '16px 16px 12px', display: 'flex', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: brand === 'deke' ? '#c4a35a' : '#3d5a73', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16 }}>{brandName[0]}</div>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: accent, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16 }}>{brandName[0]}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15, color: '#e7e9ea' }}>{brandName}</span>
@@ -304,7 +308,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
     return (
       <div style={{ maxWidth: 552, width: '100%', background: '#fff', borderRadius: 8, boxShadow: CARD_SHADOW, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', display: 'flex', gap: 12 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 4, background: brand === 'deke' ? '#c4a35a' : '#3d5a73', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18 }}>{brandName[0]}</div>
+          <div style={{ width: 48, height: 48, borderRadius: 4, background: accent, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18 }}>{brandName[0]}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: 'rgba(0,0,0,.9)' }}>{brandName}</div>
             <div style={{ fontSize: 12, color: 'rgba(0,0,0,.6)', marginTop: 1 }}>2,847 followers</div>
@@ -357,7 +361,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
           <div style={{ padding: '20px 12px 16px', minHeight: 160 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
               <div style={{
-                background: brand === 'deke' ? '#c4a35a' : '#3d5a73',
+                background: accent,
                 color: '#fff',
                 padding: '10px 14px',
                 borderRadius: '18px 18px 4px 18px',
@@ -394,7 +398,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
     const headline = String(meta.headline || deliverable.title);
     const subheadline = String(meta.subheadline || meta.subtitle || '');
     const ctaText = String(meta.cta || 'Shop Now');
-    const domain = brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com';
+    const domain = palette.domain;
 
     return (
       <div style={{ maxWidth: 820, width: '100%' }}>
@@ -410,7 +414,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
           </div>
           {/* Nav bar */}
           <div style={{ padding: '12px 24px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #eee' }}>
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1814', letterSpacing: brand === 'deke' ? '0.15em' : '0.05em' }}>{brandName.toUpperCase()}</span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1814', letterSpacing: '0.08em' }}>{brandName.toUpperCase()}</span>
             <div style={{ flex: 1 }} />
             <div style={{ display: 'flex', gap: 20 }}>
               {['New', 'Shop', 'About'].map(l => <span key={l} style={{ fontSize: 13, color: '#6b6560' }}>{l}</span>)}
@@ -419,10 +423,10 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
           {/* Hero */}
           <div style={{ position: 'relative', aspectRatio: '16/6' }}>
             <PlaceholderImg w={1200} h={450} brand={brand} text={headline.slice(0, 30)} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: brand === 'deke' ? 'flex-start' : 'center', justifyContent: 'center', padding: '0 60px', background: 'linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.1))' }}>
-              <h2 style={{ color: '#fff', fontSize: 36, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", textAlign: brand === 'deke' ? 'left' : 'center', margin: '0 0 8px', textShadow: '0 2px 8px rgba(0,0,0,0.3)', lineHeight: 1.2 }}>{headline}</h2>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 60px', background: 'linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.45))' }}>
+              <h2 style={{ color: '#fff', fontSize: 36, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", textAlign: 'center', margin: '0 0 8px', textShadow: '0 2px 8px rgba(0,0,0,0.3)', lineHeight: 1.2 }}>{headline}</h2>
               {subheadline && <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, margin: '0 0 20px', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>{subheadline}</p>}
-              <button style={{ padding: '12px 32px', borderRadius: brand === 'deke' ? 0 : 6, background: '#fff', color: '#1a1814', fontWeight: 600, fontSize: 14, border: 'none', letterSpacing: brand === 'deke' ? '0.08em' : '0' }}>{ctaText}</button>
+              <button style={{ padding: '12px 32px', borderRadius: 6, background: '#fff', color: '#1a1814', fontWeight: 600, fontSize: 14, border: 'none', letterSpacing: '0.04em' }}>{ctaText}</button>
             </div>
           </div>
         </div>
@@ -457,7 +461,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
           <div style={{ padding: '12px 16px' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#0f0f0f', lineHeight: 1.35, marginBottom: 8 }}>{videoTitle}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: brand === 'deke' ? '#c4a35a' : '#3d5a73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{brandName[0]}</div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{brandName[0]}</div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: '#0f0f0f' }}>{brandName}</span>
@@ -759,7 +763,7 @@ export function CardPreview({ deliverable, previewWidth }: { deliverable: Delive
 
   if (deliverable.type === 'seo-content') {
     const m = meta as Record<string, string | number>;
-    const domain = brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com';
+    const domain = palette.domain;
     return (
       <div style={{ width: '100%', maxWidth: 760, height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ background: '#fff', border: '1px solid #e8e4de', borderRadius: 8, padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', flexShrink: 0 }}>

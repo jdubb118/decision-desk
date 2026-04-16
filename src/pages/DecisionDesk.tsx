@@ -129,7 +129,7 @@ export default function DecisionDesk() {
         setIdx(i => Math.min(i, newQueue.length - 1));
         loadExtras();
       }
-      // On failure, card stays in queue so Jeff can retry — no phantom approvals.
+      // On failure, card stays in queue for retry — no phantom approvals.
     }, 400);
   };
 
@@ -205,7 +205,7 @@ export default function DecisionDesk() {
       const r = await fetch('/api/discuss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliverable_id: current.id, author: 'jeff', body: message }),
+        body: JSON.stringify({ deliverable_id: current.id, author: 'reviewer', body: message }),
       });
       ok = r.ok;
       if (!ok) {

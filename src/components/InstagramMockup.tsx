@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PendingAssetTile, PENDING_ASSET } from './mockups/_shared';
+import { PendingAssetTile, PENDING_ASSET, brandPalette } from './mockups/_shared';
 
 const CARD_SHADOW = '0 0 40px rgba(255,255,255,0.03), 0 12px 40px rgba(0,0,0,0.3)';
 
@@ -14,14 +14,14 @@ const IG = {
 };
 
 function ProfilePic({ brand, size = 32, hasStory = false }: { brand: string; size?: number; hasStory?: boolean }) {
-  const bg = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
   const inner = (
     <div style={{
-      width: size, height: size, borderRadius: '50%', background: bg,
+      width: size, height: size, borderRadius: '50%', background: palette.accent,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       color: '#fff', fontWeight: 600, fontSize: size * 0.38,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    }}>{brand === 'deke' ? 'D' : 'EB'}</div>
+    }}>{palette.initial}</div>
   );
   if (!hasStory) return inner;
   return (
@@ -284,7 +284,7 @@ interface ReelProps {
 
 export function IGReel({ brand, handle, caption, duration, imgSrc, placeholderText, audioLabel }: ReelProps) {
 
-  const brandName = brand === 'deke' ? 'DEKE' : 'Emanuel Berg';
+  const brandName = brandPalette(brand).name;
   return (
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
@@ -368,7 +368,7 @@ interface TikTokProps {
 
 export function TikTokPost({ brand, handle, caption, duration, imgSrc, placeholderText, soundName }: TikTokProps) {
 
-  const brandName = brand === 'deke' ? 'DEKE' : 'Emanuel Berg';
+  const brandName = brandPalette(brand).name;
 
   return (
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

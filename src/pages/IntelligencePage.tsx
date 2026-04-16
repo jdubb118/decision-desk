@@ -89,7 +89,7 @@ export default function IntelligencePage() {
 
   const domains = [
     { label: 'Creative\nStandards', short: 'CREATIVE STANDARDS', pct: Math.min(positive.length * 12, 100) },
-    { label: "Jeff's\nVoice", short: "JEFF'S VOICE", pct: Math.min(negative.length * 9, 100) },
+    { label: 'Reviewer\nVoice', short: 'REVIEWER VOICE', pct: Math.min(negative.length * 9, 100) },
     { label: 'Team\nCalibration', short: 'TEAM CALIBRATION', pct: Math.round(avgAgentRate) },
     { label: 'Decision\nVelocity', short: 'DECISION VELOCITY', pct: Math.min(velocity.length * 14, 100) },
     { label: 'Taste\nProfile', short: 'TASTE PROFILE', pct: Math.min(tasteProfile.length * 10, 100) },
@@ -400,7 +400,7 @@ function PatternRow({ record }: { record: LearningRecord }) {
   const label = record.pattern
     .replace(/_/g, ' ').replace(/-/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
-    .replace(/Jeff Note \w+/, "Jeff's Note");
+    .replace(/Denial Note \w+/, 'Reviewer Note');
 
   return (
     <div style={{

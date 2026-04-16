@@ -7,6 +7,76 @@ export const CARD_SHADOW = '0 0 40px rgba(255,255,255,0.03), 0 12px 40px rgba(0,
 
 export const PENDING_ASSET = '__PENDING__';
 
+// ---------------------------------------------------------------------------
+// Brand palette
+// ---------------------------------------------------------------------------
+// Mockups render fake social posts (Instagram, LinkedIn, etc.) for any brand
+// the queue holds. The palette gives every mockup the same neutral defaults
+// for unknown brands. Day 2's config layer will let users register their own
+// per-brand palettes; until then, every brand string falls through to defaults
+// derived from the brand id itself.
+
+export interface BrandPalette {
+  /** Display name shown in mockup headers (e.g. "BRAND"). */
+  name: string;
+  /** Single-letter initial used for logo squares. */
+  initial: string;
+  /** Accent colour as a hex string with leading "#". */
+  accent: string;
+  /** Same colour, no leading "#" — used in URL-encoded contexts. */
+  accentHex: string;
+  /** Apex domain shown in link mockups. */
+  domain: string;
+  /** Email domain used in inbox previews. */
+  emailDomain: string;
+  /** Handle (no leading @) for IG/X-style headers. */
+  handle: string;
+  /** Display name for founder-persona mockups. */
+  founderName: string;
+  /** Headline for founder-persona mockups. */
+  founderHeadline: string;
+}
+
+const DEFAULT_PALETTE: BrandPalette = {
+  name: 'BRAND',
+  initial: 'B',
+  accent: '#6366f1',
+  accentHex: '6366f1',
+  domain: 'yourbrand.com',
+  emailDomain: 'yourbrand.com',
+  handle: 'yourbrand',
+  founderName: 'Sample Founder',
+  founderHeadline: 'Founder · Replace this in your config',
+};
+
+// Day 2 will populate this from server config. Empty = pure neutral defaults.
+const PALETTES: Record<string, BrandPalette> = {};
+
+export function brandPalette(brand: string | null | undefined): BrandPalette {
+  if (!brand || brand === 'default') return DEFAULT_PALETTE;
+  const preset = PALETTES[brand];
+  if (preset) return preset;
+  // Derive a per-brand palette from the brand id so previews don't all look identical.
+  const safe = brand.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return {
+    ...DEFAULT_PALETTE,
+    name: brand.toUpperCase(),
+    initial: brand.charAt(0).toUpperCase() || 'B',
+    handle: safe || 'yourbrand',
+    domain: `${safe || 'yourbrand'}.com`,
+    emailDomain: `${safe || 'yourbrand'}.com`,
+  };
+}
+
+// Back-compat shims — pre-existing call sites still work but everyone should
+// move to brandPalette() over time.
+/** @deprecated use brandPalette(brand).accentHex */
+export function brandHex(brand: string): string { return brandPalette(brand).accentHex; }
+/** @deprecated use brandPalette(brand).accent */
+export function brandAccent(brand: string): string { return brandPalette(brand).accent; }
+/** @deprecated use brandPalette(brand).name */
+export function brandLabel(brand: string): string { return brandPalette(brand).name; }
+
 export interface PlaceholderImgProps {
   w: number;
   h: number;
@@ -15,14 +85,6 @@ export interface PlaceholderImgProps {
   style?: React.CSSProperties;
   /** When `src` equals PENDING_ASSET, render the "asset pending" tile instead of a stock photo. */
   src?: string | null;
-}
-
-function brandHex(brand: string): string {
-  return brand === 'deke' ? 'c4a35a' : '3d5a73';
-}
-
-function brandColor(brand: string): string {
-  return brand === 'deke' ? '#c4a35a' : '#3d5a73';
 }
 
 /**
@@ -35,6 +97,7 @@ function brandColor(brand: string): string {
  */
 export function PlaceholderImg({ w, h, brand, text, style, src }: PlaceholderImgProps) {
   const [useFallback, setUseFallback] = useState(false);
+  const palette = brandPalette(brand);
 
   if (src === PENDING_ASSET) {
     return <PendingAssetTile brand={brand} text={text} style={style} />;
@@ -52,11 +115,10 @@ export function PlaceholderImg({ w, h, brand, text, style, src }: PlaceholderImg
   }
 
   const seed = text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'asset';
-  const bg = brandHex(brand);
   if (useFallback) {
     return (
       <img
-        src={`https://placehold.co/${w}x${h}/${bg}/ffffff?text=${encodeURIComponent(text)}`}
+        src={`https://placehold.co/${w}x${h}/${palette.accentHex}/ffffff?text=${encodeURIComponent(text)}`}
         alt={text}
         style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }}
       />
@@ -82,7 +144,7 @@ export function PendingAssetTile({
   text: string;
   style?: React.CSSProperties;
 }) {
-  const accent = brandColor(brand);
+  const accent = brandPalette(brand).accent;
   return (
     <div
       style={{
@@ -177,14 +239,4 @@ export function PendingAssetTile({
       </div>
     </div>
   );
-}
-
-/** Brand name formatter. */
-export function brandLabel(brand: string): string {
-  return brand === 'deke' ? 'DEKE' : brand === 'eb' ? 'Emanuel Berg' : brand.toUpperCase();
-}
-
-/** Brand accent color (hex with #). */
-export function brandAccent(brand: string): string {
-  return brandColor(brand);
 }

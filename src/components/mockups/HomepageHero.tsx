@@ -1,4 +1,4 @@
-import { CARD_SHADOW, PlaceholderImg, brandLabel } from './_shared';
+import { CARD_SHADOW, PlaceholderImg, brandPalette } from './_shared';
 
 export interface HomepageHeroProps {
   brand: string;
@@ -18,8 +18,10 @@ export function HomepageHero({
   imgSrc,
   placeholderText,
 }: HomepageHeroProps) {
-  const brandName = brandLabel(brand);
-  const domain = brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const domain = palette.domain;
+  const accent = palette.accent;
   const cta = ctaText || 'Shop Now';
 
   return (
@@ -73,7 +75,7 @@ export function HomepageHero({
               fontWeight: 700,
               fontSize: 16,
               color: '#1a1814',
-              letterSpacing: brand === 'deke' ? '0.15em' : '0.05em',
+              letterSpacing: '0.08em',
             }}
           >
             {brandName.toUpperCase()}
@@ -108,13 +110,11 @@ export function HomepageHero({
               inset: 0,
               display: 'flex',
               flexDirection: 'column',
-              alignItems: brand === 'deke' ? 'flex-start' : 'center',
+              alignItems: 'center',
               justifyContent: 'center',
               padding: '0 60px',
-              background: brand === 'deke'
-                ? 'linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.1))'
-                : 'linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.45))',
-              textAlign: brand === 'deke' ? 'left' : 'center',
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.45))',
+              textAlign: 'center',
             }}
           >
             <h2
@@ -148,13 +148,13 @@ export function HomepageHero({
             <button
               style={{
                 padding: '12px 32px',
-                borderRadius: brand === 'deke' ? 0 : 6,
+                borderRadius: 6,
                 background: '#fff',
                 color: '#1a1814',
                 fontWeight: 600,
                 fontSize: 14,
                 border: 'none',
-                letterSpacing: brand === 'deke' ? '0.08em' : '0',
+                letterSpacing: '0.04em',
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
@@ -192,7 +192,7 @@ export function HomepageHero({
                   width: 60,
                   height: 60,
                   borderRadius: 4,
-                  background: `linear-gradient(135deg, ${brand === 'deke' ? '#c4a35a22' : '#3d5a7322'}, #eee)`,
+                  background: `linear-gradient(135deg, ${accent}22, #eee)`,
                   border: '1px solid #e8e4de',
                 }}
               />

@@ -1,4 +1,4 @@
-import { CARD_SHADOW, PlaceholderImg, brandLabel } from './_shared';
+import { CARD_SHADOW, PlaceholderImg, brandPalette } from './_shared';
 
 export interface FBFeedPostProps {
   brand: string;
@@ -24,8 +24,9 @@ export function FBFeedPost({
   linkDomain,
   linkTitle,
 }: FBFeedPostProps) {
-  const brandName = brandLabel(brand);
-  const accent = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const accent = palette.accent;
   const imageAspect = variant === 'reel' ? '9/16' : '1.91/1';
   const imageWidth = variant === 'reel' ? 400 : 800;
   const imageHeight = variant === 'reel' ? 720 : 420;
@@ -126,7 +127,7 @@ export function FBFeedPost({
                 letterSpacing: '0.02em',
               }}
             >
-              {linkDomain || (brand === 'eb' ? 'emanuel-berg.com' : 'deke-style.com')}
+              {linkDomain || palette.domain}
             </div>
             <div
               style={{

@@ -1,4 +1,4 @@
-import { CARD_SHADOW, PlaceholderImg, brandLabel } from './_shared';
+import { CARD_SHADOW, PlaceholderImg, brandPalette } from './_shared';
 
 export interface LinkedInPostProps {
   brand: string;
@@ -27,19 +27,17 @@ export function LinkedInPost({
   founderName,
   founderHeadline,
 }: LinkedInPostProps) {
-  const brandName = brandLabel(brand);
-  const accent = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const accent = palette.accent;
   const isTextOnly = subChannel === 'text post' || subChannel === 'text-post';
   const isDocument = subChannel === 'document' || subChannel === 'carousel';
 
   const displayName = isFounder
-    ? founderName || (brand === 'deke' ? 'Russ' : 'Oscar Lindberg')
+    ? founderName || palette.founderName
     : brandName;
   const displayHeadline = isFounder
-    ? founderHeadline ||
-      (brand === 'deke'
-        ? 'Founder at DEKE Style Journey · Menswear built on one simple idea'
-        : 'Founder at Emanuel Berg · Swedish shirts, made for how we live now')
+    ? founderHeadline || palette.founderHeadline
     : null;
 
   return (

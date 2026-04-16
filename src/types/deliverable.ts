@@ -23,7 +23,6 @@ export interface Deliverable {
   executed_by: string | null;
   execution_status: string | null;
   execution_notes: string | null;
-  probation_entry_id: string | null;
 }
 
 export type SwipeDirection = 'approve' | 'deny' | 'discuss' | null;
@@ -38,15 +37,15 @@ export interface CardContext {
   } | null;
   blockingCount: number;
   priorDenials: Array<{ version: number; verdict: string; denial_tags: string[]; notes: string | null }>;
-  stellaNote: string | null;
+  reviewerNote: string | null;
   agentHistory: Array<{ verdict: string; created_at: string; notes: string | null }>;
   agentStats: { total: number; approved: number; rate: number; topDenialTag: string | null };
   qa: {
-    stellaReviewed: boolean;
+    qaReviewed: boolean;
     agentSelfScore: number | null;
     agentNote: string | null;
     overallConfidence: string | null;
-    stellaScore: number | null;
+    qaScore: number | null;
     technicalScore: number;
     passedChecks: number;
     totalChecks: number;

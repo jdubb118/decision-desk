@@ -1,4 +1,4 @@
-import { CARD_SHADOW, PlaceholderImg, brandLabel } from './_shared';
+import { CARD_SHADOW, PlaceholderImg, brandPalette } from './_shared';
 
 export interface YouTubePreviewProps {
   brand: string;
@@ -41,8 +41,9 @@ function YouTubeLongForm({
   placeholderText: string;
   duration: string;
 }) {
-  const brandName = brandLabel(brand);
-  const accent = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const accent = palette.accent;
   return (
     <div style={{ maxWidth: 640, width: '100%' }}>
       <div style={{ background: '#fff', borderRadius: 12, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
@@ -114,8 +115,9 @@ function YouTubeShort({
   placeholderText: string;
   duration: string;
 }) {
-  const brandName = brandLabel(brand);
-  const accent = brand === 'deke' ? '#c4a35a' : '#3d5a73';
+  const palette = brandPalette(brand);
+  const brandName = palette.name;
+  const accent = palette.accent;
   return (
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
@@ -172,7 +174,7 @@ function YouTubeShort({
             {/* Bottom info */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 64, padding: '36px 12px 14px', background: 'linear-gradient(transparent, rgba(0,0,0,0.5))' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, fontFamily: '-apple-system, sans-serif' }}>@{brand === 'deke' ? 'deke_official' : 'emanuelberg'}</span>
+                <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, fontFamily: '-apple-system, sans-serif' }}>@{palette.handle}</span>
                 <span style={{ fontSize: 11, color: '#fff', padding: '2px 8px', borderRadius: 3, border: '1px solid rgba(255,255,255,0.5)', fontWeight: 600 }}>Subscribe</span>
               </div>
               <div style={{ fontSize: 13, color: '#fff', lineHeight: 1.4, fontFamily: '-apple-system, sans-serif', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>

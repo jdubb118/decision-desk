@@ -1,4 +1,4 @@
-// PRISM Design System
+// Decision Desk design tokens
 // Brand-native, editorial, warm — not generic SaaS
 
 // Brand is a free-form string; UI styling is config-driven (Day 2).
