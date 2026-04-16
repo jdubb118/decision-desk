@@ -1,0 +1,30 @@
+{
+  "name": "decision-desk",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Standalone approval queue + intelligence dashboard",
+  "type": "module",
+  "scripts": {
+    "dev:server": "node server.mjs",
+    "dev:ui": "vite",
+    "build": "tsc -b && vite build",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "framer-motion": "^12.38.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
+  }
+}
