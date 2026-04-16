@@ -9,8 +9,15 @@ services:
       # or change the left side to "3335:3335" if you want LAN access.
       - "127.0.0.1:3335:3335"
     volumes:
-      # Persists the SQLite DB + any uploads across container restarts.
-      - ./data:/app/data
+      # Named volume (default) — works on any host without UID/GID fiddling.
+      # To browse data from the host, either `docker cp` or switch this to a
+      # bind mount (see below).
+      - dd-data:/app/data
+      # Bind mount alternative: `./data:/app/data` — simpler for inspection
+      # but requires `mkdir -p ./data && sudo chown 1000:1000 ./data` on Linux
+      # so the non-root `desk` user inside the container can write. Named
+      # volume avoids this entirely.
+      #
       # Optional: mount a config.json read-only. Uncomment after you copy
       # config.example.json to config.json (otherwise compose fails because
       # the file doesn't exist yet). Env vars below also work.
@@ -30,3 +37,6 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+volumes:
+  dd-data:

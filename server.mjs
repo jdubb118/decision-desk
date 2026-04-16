@@ -73,6 +73,24 @@ const BRANDS = (() => {
 
 const CARD_TYPES = Array.isArray(fileConfig.card_types) ? fileConfig.card_types : null;
 
+// Retention: when set, a daily sweep nulls out html_content on decided cards
+// older than N days. Decisions, learning records, and metadata are kept
+// forever — only the card bodies are freed. Off by default.
+const RETENTION_DAYS = Number(pickEnv(
+  'DECISION_DESK_RETENTION_DAYS',
+  fileConfig.retention?.archive_decided_after_days,
+  0,
+)) || 0;
+
+// Rate limit: per-IP token bucket on mutating /api/* requests. Tunable via
+// env or config. Default 60 writes/min per IP — very generous for an internal
+// desk; agents can always bump it up.
+const RATE_LIMIT_PER_MIN = Number(pickEnv(
+  'DECISION_DESK_RATE_LIMIT_PER_MIN',
+  fileConfig.rate_limit?.writes_per_minute,
+  60,
+)) || 60;
+
 mkdirSync(DATA_DIR, { recursive: true });
 
 // ---------------------------------------------------------------------------
@@ -383,6 +401,44 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '5mb' }));
 
+// Methods that mutate state — used by both the rate limiter and the
+// auth middleware below.
+const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+
+// Token-bucket rate limiter keyed by X-Forwarded-For or remote IP.
+// Per-IP allowance refills at RATE_LIMIT_PER_MIN/minute. Applied only to
+// mutating /api/* requests so read-heavy UI traffic is unaffected.
+const RATE_BUCKETS = new Map(); // ip -> { tokens, lastRefill }
+function rateAllow(ip) {
+  if (RATE_LIMIT_PER_MIN <= 0) return true;
+  const capacity = RATE_LIMIT_PER_MIN;
+  const refillPerMs = capacity / 60_000;
+  const nowMs = Date.now();
+  let b = RATE_BUCKETS.get(ip);
+  if (!b) { b = { tokens: capacity, lastRefill: nowMs }; RATE_BUCKETS.set(ip, b); }
+  const elapsed = nowMs - b.lastRefill;
+  b.tokens = Math.min(capacity, b.tokens + elapsed * refillPerMs);
+  b.lastRefill = nowMs;
+  if (b.tokens < 1) return false;
+  b.tokens -= 1;
+  return true;
+}
+// Opportunistic garbage-collect so the map doesn't grow unbounded over weeks.
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60_000;
+  for (const [ip, b] of RATE_BUCKETS) if (b.lastRefill < cutoff) RATE_BUCKETS.delete(ip);
+}, 5 * 60_000).unref();
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  if (!MUTATING_METHODS.has(req.method)) return next();
+  const ip = (req.get('x-forwarded-for') || req.ip || 'unknown').split(',')[0].trim();
+  if (!rateAllow(ip)) {
+    return res.status(429).json({ error: `Rate limit exceeded (${RATE_LIMIT_PER_MIN}/min per IP)` });
+  }
+  next();
+});
+
 // Bearer-token auth on write endpoints. Applies only when WRITE_TOKEN is set.
 // Uses constant-time compare to avoid leaking length via timing. Reads remain
 // open so the reviewer UI can render without auth (put it behind a proxy if
@@ -402,7 +458,6 @@ function requireWriteToken(req, res, next) {
 }
 
 // Mutating routes go through the auth middleware. Reads (GET) do not.
-const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   if (!MUTATING_METHODS.has(req.method)) return next();
@@ -1344,10 +1399,37 @@ app.get('*', (req, res) => {
 
 // Bind to HOST (defaults to 127.0.0.1 — single-tenant self-host posture).
 // Set HOST=0.0.0.0 to expose on LAN; pair with a reverse proxy + auth.
+// Retention sweep: nulls out html_content on cards decided more than
+// RETENTION_DAYS ago. Keeps decisions, learning records, metadata, and the
+// deliverable row itself — only the card body (which is the bulk of the
+// DB size over time) gets freed. Runs once at boot and then daily.
+function runRetentionSweep() {
+  if (RETENTION_DAYS <= 0) return;
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const result = db.prepare(`
+    UPDATE deliverables
+    SET html_content = NULL
+    WHERE status IN ('approved', 'denied')
+      AND decided_at IS NOT NULL
+      AND decided_at < ?
+      AND html_content IS NOT NULL
+  `).run(cutoff);
+  if (result.changes > 0) {
+    console.log(`[retention] freed ${result.changes} card bodies older than ${RETENTION_DAYS} days`);
+  }
+}
+if (RETENTION_DAYS > 0) {
+  setTimeout(runRetentionSweep, 5_000); // at boot, after server is serving
+  setInterval(runRetentionSweep, 24 * 60 * 60 * 1000).unref();
+}
+
 app.listen(PORT, HOST, () => {
   console.log(`Decision Desk running on http://${HOST}:${PORT}`);
-  console.log(`  data dir: ${DATA_DIR}`);
-  if (NOTIFY_WEBHOOK_URL) console.log(`  webhook:  ${NOTIFY_WEBHOOK_URL}`);
+  console.log(`  data dir:   ${DATA_DIR}`);
+  console.log(`  auth:       ${WRITE_TOKEN ? 'required on writes' : 'off (reads + writes open)'}`);
+  console.log(`  rate limit: ${RATE_LIMIT_PER_MIN > 0 ? `${RATE_LIMIT_PER_MIN}/min per IP on writes` : 'off'}`);
+  console.log(`  retention:  ${RETENTION_DAYS > 0 ? `archive bodies after ${RETENTION_DAYS} days` : 'off (keep forever)'}`);
+  if (NOTIFY_WEBHOOK_URL) console.log(`  webhook:    ${NOTIFY_WEBHOOK_URL}`);
   const counts = db.prepare(`
     SELECT
       (SELECT COUNT(*) FROM deliverables) as deliverables,
