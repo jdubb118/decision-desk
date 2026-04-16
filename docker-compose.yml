@@ -1,0 +1,32 @@
+services:
+  decision-desk:
+    build: .
+    image: decision-desk:latest
+    container_name: decision-desk
+    restart: unless-stopped
+    ports:
+      # Bind to loopback on the host by default — put a reverse proxy in front
+      # or change the left side to "3335:3335" if you want LAN access.
+      - "127.0.0.1:3335:3335"
+    volumes:
+      # Persists the SQLite DB + any uploads across container restarts.
+      - ./data:/app/data
+      # Optional: mount a config.json read-only. Uncomment after you copy
+      # config.example.json to config.json (otherwise compose fails because
+      # the file doesn't exist yet). Env vars below also work.
+      # - ./config.json:/app/config.json:ro
+    environment:
+      # Auth (optional). Set this and agents must send Authorization: Bearer <token>
+      # on any write endpoint. Read endpoints remain open for the reviewer UI.
+      # DECISION_DESK_WRITE_TOKEN: "change-me-to-a-long-random-string"
+      #
+      # Webhook (optional).
+      # DECISION_DESK_WEBHOOK_URL: "https://example.com/hook"
+      # DECISION_DESK_WEBHOOK_SECRET: "sign-my-requests"
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3335/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

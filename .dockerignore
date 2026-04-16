@@ -1,0 +1,17 @@
+node_modules
+dist
+data
+.git
+.gitignore
+.env
+.env.local
+config.json
+*.bak
+*.bak.*
+.DS_Store
+__pycache__
+*.pyc
+README.md
+LICENSE
+examples
+sdk
