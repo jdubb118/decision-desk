@@ -1,0 +1,49 @@
+{
+  "_comment": "Copy to config.json and edit. Every field is optional — env vars override anything you set here. Delete this comment in your real config.",
+
+  "port": 3335,
+  "host": "127.0.0.1",
+  "data_dir": "./data",
+  "reviewer": "reviewer",
+
+  "brands": [
+    {
+      "id": "default",
+      "label": "Default",
+      "color": "#6366f1"
+    }
+  ],
+
+  "_brands_multi_example": [
+    {
+      "id": "acme",
+      "label": "Acme Corp",
+      "color": "#c4a35a",
+      "domain": "acme.com",
+      "handle": "acme_official",
+      "founder_name": "Jane Doe",
+      "founder_headline": "Founder · Building the future of widgets",
+      "context_path": "./data/brand-context/acme-context.md"
+    },
+    {
+      "id": "globex",
+      "label": "Globex",
+      "color": "#3d5a73",
+      "domain": "globex.io",
+      "handle": "globex"
+    }
+  ],
+
+  "card_types": ["email", "social", "blog", "capability", "custom"],
+
+  "calendar": {
+    "import_paths": {}
+  },
+
+  "safe_roots": ["./data/uploads"],
+
+  "notifications": {
+    "webhook_url": null,
+    "webhook_secret": null
+  }
+}

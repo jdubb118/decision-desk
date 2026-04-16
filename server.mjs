@@ -7,17 +7,66 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.env.PORT) || 3335;
-const HOST = process.env.HOST || '127.0.0.1';
-const DATA_DIR = resolve(process.env.DECISION_DESK_DATA_DIR || join(__dirname, 'data'));
-const DB_PATH = process.env.DECISION_DESK_DB || join(DATA_DIR, 'decision-desk.db');
-const REVIEWER = process.env.DECISION_DESK_REVIEWER || 'reviewer';
-const BRAND_CONTEXT_DIR = process.env.DECISION_DESK_BRAND_CONTEXT_DIR || join(DATA_DIR, 'brand-context');
-const SAFE_ROOTS = (process.env.DECISION_DESK_SAFE_ROOTS || join(DATA_DIR, 'uploads'))
-  .split(':')
-  .map(p => p.endsWith('/') ? p : p + '/');
-const NOTIFY_WEBHOOK_URL = process.env.DECISION_DESK_WEBHOOK_URL || null;
-const NOTIFY_WEBHOOK_SECRET = process.env.DECISION_DESK_WEBHOOK_SECRET || null;
+
+// ---------------------------------------------------------------------------
+// Config resolution
+// ---------------------------------------------------------------------------
+// Priority: env var > config.json > built-in default. Env wins so people can
+// override any field via DECISION_DESK_* without editing config.json.
+
+const CONFIG_PATH = process.env.DECISION_DESK_CONFIG || join(__dirname, 'config.json');
+
+function loadConfigFile() {
+  if (!existsSync(CONFIG_PATH)) return {};
+  try { return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8')); }
+  catch (err) {
+    console.error(`Invalid config.json at ${CONFIG_PATH}:`, err.message);
+    return {};
+  }
+}
+
+const fileConfig = loadConfigFile();
+
+function pickEnv(envKey, fileVal, fallback) {
+  if (process.env[envKey] !== undefined && process.env[envKey] !== '') return process.env[envKey];
+  if (fileVal !== undefined && fileVal !== null) return fileVal;
+  return fallback;
+}
+
+const PORT = Number(pickEnv('PORT', fileConfig.port, 3335));
+const HOST = pickEnv('HOST', fileConfig.host, '127.0.0.1');
+const DATA_DIR = resolve(pickEnv('DECISION_DESK_DATA_DIR', fileConfig.data_dir, join(__dirname, 'data')));
+const DB_PATH = pickEnv('DECISION_DESK_DB', fileConfig.database_path, join(DATA_DIR, 'decision-desk.db'));
+const REVIEWER = pickEnv('DECISION_DESK_REVIEWER', fileConfig.reviewer, 'reviewer');
+const BRAND_CONTEXT_DIR = pickEnv('DECISION_DESK_BRAND_CONTEXT_DIR', fileConfig.brand_context_dir, join(DATA_DIR, 'brand-context'));
+const SAFE_ROOTS = (pickEnv(
+  'DECISION_DESK_SAFE_ROOTS',
+  Array.isArray(fileConfig.safe_roots) ? fileConfig.safe_roots.join(':') : fileConfig.safe_roots,
+  join(DATA_DIR, 'uploads'),
+)).split(':').map(p => p.endsWith('/') ? p : p + '/');
+const NOTIFY_WEBHOOK_URL = pickEnv('DECISION_DESK_WEBHOOK_URL', fileConfig.notifications?.webhook_url, null) || null;
+const NOTIFY_WEBHOOK_SECRET = pickEnv('DECISION_DESK_WEBHOOK_SECRET', fileConfig.notifications?.webhook_secret, null) || null;
+
+// Brands: array of { id, label, color, ... }. Frontend mockups consume this
+// via /api/config. If unspecified, the desk runs single-tenant with one
+// "default" brand and the toggle stays hidden.
+const BRANDS = (() => {
+  if (Array.isArray(fileConfig.brands) && fileConfig.brands.length > 0) {
+    return fileConfig.brands.map(b => ({
+      id: String(b.id),
+      label: String(b.label || b.id),
+      color: String(b.color || '#6366f1'),
+      domain: b.domain ? String(b.domain) : null,
+      handle: b.handle ? String(b.handle) : null,
+      founder_name: b.founder_name ? String(b.founder_name) : null,
+      founder_headline: b.founder_headline ? String(b.founder_headline) : null,
+      context_path: b.context_path ? String(b.context_path) : null,
+    }));
+  }
+  return [{ id: 'default', label: 'Default', color: '#6366f1', domain: null, handle: null, founder_name: null, founder_headline: null, context_path: null }];
+})();
+
+const CARD_TYPES = Array.isArray(fileConfig.card_types) ? fileConfig.card_types : null;
 
 mkdirSync(DATA_DIR, { recursive: true });
 
@@ -290,7 +339,11 @@ function extractLearning(decision, deliverable) {
 
 function parseBrandContext(brand) {
   if (!brand) return null;
-  const filePath = join(BRAND_CONTEXT_DIR, `${brand}-context.md`);
+  // Per-brand context_path in config wins; else fall back to BRAND_CONTEXT_DIR/<brand>-context.md
+  const brandCfg = BRANDS.find(b => b.id === brand);
+  const filePath = brandCfg?.context_path
+    ? resolve(brandCfg.context_path)
+    : join(BRAND_CONTEXT_DIR, `${brand}-context.md`);
 
   if (!existsSync(filePath)) return null;
 
@@ -334,6 +387,25 @@ if (existsSync(distPath)) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// Public config — frontend fetches this once at boot to learn the brand list,
+// theme, and any other UI-relevant settings. Never exposes secrets or paths.
+app.get('/api/config', (_req, res) => {
+  res.json({
+    brands: BRANDS.map(b => ({
+      id: b.id,
+      label: b.label,
+      color: b.color,
+      domain: b.domain,
+      handle: b.handle,
+      founder_name: b.founder_name,
+      founder_headline: b.founder_headline,
+    })),
+    card_types: CARD_TYPES,
+    calendar_enabled: Object.keys(CALENDAR_PATHS).length > 0,
+    webhook_configured: !!NOTIFY_WEBHOOK_URL,
+  });
+});
 
 // Health
 app.get('/api/health', (_req, res) => {
@@ -821,19 +893,19 @@ app.get('/api/file/:id', (req, res) => {
 // ---------------------------------------------------------------------------
 // Calendar API
 // ---------------------------------------------------------------------------
-// Calendar import paths are configured via DECISION_DESK_CALENDAR_PATHS as a
-// JSON object mapping brand → file path, e.g.
-//   DECISION_DESK_CALENDAR_PATHS='{"acme":"/data/acme-calendar.json"}'
-// Empty by default — calendar import is opt-in.
+// Calendar import paths come from config.json `calendar.import_paths` or env
+// DECISION_DESK_CALENDAR_PATHS (JSON map of brand → file path). Env overrides
+// config. Empty by default — calendar import is opt-in.
 
 const CALENDAR_PATHS = (() => {
-  const raw = process.env.DECISION_DESK_CALENDAR_PATHS;
-  if (!raw) return {};
-  try { return JSON.parse(raw); }
-  catch (err) {
-    console.warn('Invalid DECISION_DESK_CALENDAR_PATHS JSON, ignoring:', err.message);
-    return {};
+  const envRaw = process.env.DECISION_DESK_CALENDAR_PATHS;
+  if (envRaw) {
+    try { return JSON.parse(envRaw); }
+    catch (err) {
+      console.warn('Invalid DECISION_DESK_CALENDAR_PATHS JSON, falling back to config:', err.message);
+    }
   }
+  return fileConfig.calendar?.import_paths || {};
 })();
 
 const VALID_STATUSES = new Set(['draft', 'briefed', 'produced', 'approved', 'staged', 'posted', 'killed', 'copy-review', 'asset-ready', 'scheduled', 'published']);
@@ -1146,6 +1218,7 @@ app.post('/api/learning', (req, res) => {
 // without an entry below shows up as "undocumented" — add one or delete the route.
 
 const ROUTE_DOCS = {
+  'GET /api/config': { summary: 'Public runtime config: brands, card types, calendar/webhook flags. Frontend fetches at boot.', auth: 'none' },
   'GET /api/health': { summary: 'Service health + row counts.', auth: 'none' },
   'GET /api/routes': { summary: 'Live API catalog (this endpoint).', auth: 'none' },
   'POST /api/submit': { summary: 'Agents submit a new deliverable to the queue.', auth: 'none', body: { type: 'string (required)', brand: 'string', agent_id: 'string', title: 'string (required)', html_content: 'string (required)', subject_line: 'string', metadata: 'object | string', campaign_id: 'string (auto-created if absent)' } },

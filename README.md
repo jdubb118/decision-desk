@@ -11,6 +11,8 @@ Your agents submit deliverables (emails, social posts, code proposals — any HT
 - **Calendar** — month-grid view of scheduled content with status, tier, and flag tracking
 - **Discussion** — threaded comments per card
 - **Webhooks** — fire-and-forget POSTs on every verdict and execution event
+- **Multi-brand** — register any number of brands in `config.json`; the UI auto-renders a brand toggle and themed previews
+- **SDKs** — minimal Python and Node clients (stdlib only, no external deps)
 
 ## Quickstart
 
@@ -21,44 +23,102 @@ npm run build              # builds the React frontend into ./dist
 npm start                  # boots http://127.0.0.1:3335
 ```
 
-That's it. No config file required — sensible defaults put the SQLite DB at `./data/decision-desk.db`.
+That's it. No config file required — sensible defaults put the SQLite DB at `./data/decision-desk.db`. The desk runs single-brand by default; the brand toggle stays hidden until you register more than one.
 
-To customise, copy `.env.example` to `.env` and tweak.
+## Configuration
+
+Two ways to configure, in priority order: **env vars > `config.json` > built-in defaults**.
+
+```bash
+cp config.example.json config.json
+$EDITOR config.json
+```
+
+```jsonc
+{
+  "port": 3335,
+  "host": "127.0.0.1",
+  "data_dir": "./data",
+  "brands": [
+    { "id": "default", "label": "Default", "color": "#6366f1" }
+  ],
+  "notifications": { "webhook_url": null }
+}
+```
+
+For per-shell overrides, copy `.env.example` to `.env` and use `DECISION_DESK_*` env vars.
+
+### Multi-brand
+
+Register more brands and the UI grows a toggle. Each brand defines its theme color and (optionally) the domain / handle / founder name used in mockup previews.
+
+```json
+"brands": [
+  { "id": "acme",   "label": "Acme",   "color": "#c4a35a", "domain": "acme.com",   "handle": "acme_official" },
+  { "id": "globex", "label": "Globex", "color": "#3d5a73", "domain": "globex.io", "handle": "globex" }
+]
+```
+
+When agents submit cards, they pass `brand: "acme"` to scope cards / decisions / learning to that brand.
 
 ## Submitting a card from your agent
 
-```bash
-curl -X POST http://127.0.0.1:3335/api/submit \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "agent_id":  "my-agent",
-    "type":      "email",
-    "title":     "Welcome flow v3",
-    "html_content": "<h1>Hi</h1>"
-  }'
+Use one of the SDKs — full example in [`examples/basic-agent/`](examples/basic-agent/):
+
+```python
+# pip-free Python (stdlib only)
+import sys
+sys.path.insert(0, "sdk/python")
+from decision_desk import Client
+
+dd = Client("http://localhost:3335", agent_id="my-agent")
+card = dd.submit_card(
+    type="email",
+    title="Welcome flow v3",
+    html_content="<h1>Hi</h1>",
+    brand="default",
+)
+verdict = dd.wait_for_decision(card["id"])
+if verdict["status"] == "approved":
+    # ... do the work ...
+    dd.mark_executed(card["id"], execution_notes="sent via SMTP")
 ```
 
-The full route catalogue is at [`GET /api/routes`](http://127.0.0.1:3335/api/routes) once the server is running.
+```js
+// Node 18+ (built-in fetch, no deps)
+import { Client } from './sdk/node/index.mjs';
+
+const dd = new Client('http://localhost:3335', 'my-agent');
+const card = await dd.submitCard({
+  type: 'email',
+  title: 'Welcome flow v3',
+  html_content: '<h1>Hi</h1>',
+});
+const verdict = await dd.waitForDecision(card.id);
+if (verdict.status === 'approved') {
+  await dd.markExecuted(card.id, { execution_notes: 'sent via SMTP' });
+}
+```
+
+Or skip the SDK entirely and POST to `/api/submit`. The full route catalogue is at [`GET /api/routes`](http://127.0.0.1:3335/api/routes) once the server is running.
 
 ## Closing the loop
 
-When you mark a card approved, the agent that submitted it polls for the verdict and runs the work:
+When you approve a card, the agent that submitted it polls for the verdict, runs the work, then marks the card executed. That fires an `executed` webhook event (if `notifications.webhook_url` is set) so your downstream systems know it shipped.
 
-```bash
-# poll
-curl 'http://127.0.0.1:3335/api/deliverables?status=approved&executed=false'
+## Webhooks
 
-# after running it
-curl -X POST http://127.0.0.1:3335/api/deliverables/<id>/executed \
-  -H 'Content-Type: application/json' \
-  -d '{"executed_by":"my-agent","execution_status":"completed","execution_notes":"sent via SMTP"}'
+Set `notifications.webhook_url` (and optionally `webhook_secret`) and Decision Desk POSTs JSON events on every decision and execution:
+
+```json
+{ "event": "decision", "card": { "id": "...", "type": "email", "title": "..." }, "verdict": "approved", "raw_verdict": "approved", "notes": null, "timestamp": "2026-04-16T12:00:00Z" }
 ```
 
-That marks the card done and (if `DECISION_DESK_WEBHOOK_URL` is set) fires an `executed` webhook event so your downstream systems know.
+When `webhook_secret` is set, the request includes an `X-DecisionDesk-Signature: sha256=<hex>` header — HMAC-SHA256 over the raw body.
 
 ## Status
 
-This is a **Day 1 fork** from a private internal build. Multi-brand UI, an SDK, and Docker packaging are coming in subsequent days. The API and database schema are stable.
+Day 2 of the OSS fork. The API, database schema, and SDK shape are stable. Coming next: Docker packaging, retention/archival policy, optional auth.
 
 ## License
 

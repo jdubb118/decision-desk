@@ -49,14 +49,49 @@ const DEFAULT_PALETTE: BrandPalette = {
   founderHeadline: 'Founder · Replace this in your config',
 };
 
-// Day 2 will populate this from server config. Empty = pure neutral defaults.
+// Mutable in-memory cache populated at app boot from GET /api/config.
+// Keeping it module-level lets every mockup call brandPalette(brandId)
+// without prop-drilling palette data through the component tree.
 const PALETTES: Record<string, BrandPalette> = {};
 
+/** Server-config shape for one brand entry. */
+export interface ServerBrandConfig {
+  id: string;
+  label?: string;
+  color?: string;
+  domain?: string | null;
+  handle?: string | null;
+  founder_name?: string | null;
+  founder_headline?: string | null;
+}
+
+/** Hydrate the palette cache from /api/config — call once after the fetch resolves. */
+export function setBrandPalettes(brands: ServerBrandConfig[]) {
+  for (const b of brands) {
+    if (!b.id) continue;
+    const accent = b.color || DEFAULT_PALETTE.accent;
+    const handle = b.handle || b.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'yourbrand';
+    const domain = b.domain || `${handle}.com`;
+    PALETTES[b.id] = {
+      name: (b.label || b.id).toUpperCase(),
+      initial: (b.label || b.id).charAt(0).toUpperCase() || 'B',
+      accent,
+      accentHex: accent.replace(/^#/, ''),
+      domain,
+      emailDomain: domain,
+      handle,
+      founderName: b.founder_name || DEFAULT_PALETTE.founderName,
+      founderHeadline: b.founder_headline || DEFAULT_PALETTE.founderHeadline,
+    };
+  }
+}
+
 export function brandPalette(brand: string | null | undefined): BrandPalette {
-  if (!brand || brand === 'default') return DEFAULT_PALETTE;
+  if (!brand || brand === 'default') return PALETTES['default'] || DEFAULT_PALETTE;
   const preset = PALETTES[brand];
   if (preset) return preset;
-  // Derive a per-brand palette from the brand id so previews don't all look identical.
+  // No registered preset — derive a per-brand palette from the brand id so
+  // previews don't all look identical.
   const safe = brand.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   return {
     ...DEFAULT_PALETTE,

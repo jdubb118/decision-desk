@@ -11,6 +11,7 @@ decision-desk.db-wal
 # Local env overrides
 .env
 .env.local
+config.json
 
 # Backups
 *.bak
